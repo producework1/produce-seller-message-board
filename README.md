@@ -57,6 +57,27 @@ no accounts were created during this build.**
 |----------|-----------|--------------------------------------------|
 | PORT     | 3000      | Port to listen on                          |
 | DATA_DIR | ./data    | Persistent storage dir (mount a volume here in prod) |
+| BOARD_OWNER_CODE | (unset) | Optional seed — see below |
+| BOARD_SELLER_CODE | (unset) | Optional seed — see below |
+
+## Free-tier workaround (seeded codes)
+
+On hosts without persistent storage (e.g. Render's free tier), the data dir can
+be wiped on restart, which would reset the board to the owner-setup screen.
+Setting **both** `BOARD_OWNER_CODE` and `BOARD_SELLER_CODE` in the host's
+environment settings seeds the board on every boot: if the saved store has no
+completed setup, the board starts already set up with these codes, and the
+token-signing secret and invite version are derived deterministically from
+them — so owner/seller sign-ins and existing sign-in tokens survive restarts
+and data-dir wipes. The in-app setup screen is disabled while seeded.
+
+Limits while running seeded on a free/ephemeral host: posts, pictures, replies,
+and admins added in-app still live in the data dir and are lost when it is
+wiped; changing the seller code means changing `BOARD_SELLER_CODE` in the host
+settings (an in-app rotation is overwritten by the seed after a wipe). Once a
+persisted store (paid disk) has a completed setup, that store wins and the
+seed vars are ignored, so upgrading later needs no code change — just attach
+the disk; the seed can then be removed from the environment.
 
 ## Features
 

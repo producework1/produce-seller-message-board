@@ -4,6 +4,14 @@
 // Env vars:
 //   PORT     - port to listen on (default 3000)
 //   DATA_DIR - directory for persistent storage (default ./data next to this file)
+//   BOARD_OWNER_CODE  - optional seed: if set (with BOARD_SELLER_CODE) and the
+//   BOARD_SELLER_CODE   saved store has no completed setup, the board boots
+//                       already set up with these codes. Signing secret and
+//                       invite version are derived deterministically from
+//                       them, so sign-in tokens survive restarts even when
+//                       the data dir is wiped (e.g. Render free tier). Once a
+//                       persisted store has a completed setup, it wins and
+//                       these are ignored.
 
 const http = require('http');
 const fs = require('fs');
@@ -56,6 +64,27 @@ if (!store) {
   saveStore(store);
 }
 fs.mkdirSync(UPLOAD_DIR, { recursive: true });
+
+// ---------- env seed (free-tier workaround) ----------
+const ENV_OWNER_CODE = process.env.BOARD_OWNER_CODE || '';
+const ENV_SELLER_CODE = process.env.BOARD_SELLER_CODE || '';
+if (ENV_OWNER_CODE && ENV_SELLER_CODE) {
+  if (!store.setupComplete) {
+    const seedMaterial = 'seller-board-seed:' + ENV_OWNER_CODE + ':' + ENV_SELLER_CODE;
+    store.secret = crypto.createHash('sha256').update(seedMaterial).digest('hex');
+    store.ownerCodeHash = hashCode(ENV_OWNER_CODE);
+    store.sellerCodeHash = hashCode(ENV_SELLER_CODE);
+    // Tie inviteVersion to the seller code, so changing the env seller code
+    // invalidates previously issued seller tokens, same as an in-app rotation.
+    const fp = crypto.createHash('sha256').update('invite:' + ENV_SELLER_CODE).digest();
+    store.inviteVersion = fp.readUInt32BE(0) || 1;
+    store.setupComplete = true;
+    saveStore(store);
+    console.log('Board seeded from BOARD_OWNER_CODE / BOARD_SELLER_CODE env vars.');
+  }
+} else if (ENV_OWNER_CODE || ENV_SELLER_CODE) {
+  console.warn('Only one of BOARD_OWNER_CODE / BOARD_SELLER_CODE is set - seed skipped; both are required.');
+}
 
 // ---------- crypto helpers ----------
 function hashCode(code) {
