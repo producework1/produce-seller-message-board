@@ -1,0 +1,1 @@
+{"description":"Invite-only anonymous message board for sellers (produce experiences and concerns).","engines":{"node":">=18"},"license":"UNLICENSED","main":"server.js","name":"produce-seller-message-board","scripts":{"start":"node server.js"},"version":"1.0.0"}
